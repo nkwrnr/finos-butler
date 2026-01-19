@@ -1,18 +1,21 @@
 import Database from 'better-sqlite3';
 import path from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import fs from 'fs';
 
-const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'finance.db');
+// Determine database path
+const dbPath = process.env.DATABASE_PATH
+  ? process.env.DATABASE_PATH
+  : path.join(process.cwd(), 'finance.db');
 
-// Only create directory for production when DATABASE_PATH env var is explicitly set
-// Local dev uses process.cwd()/finance.db where the directory already exists
-if (process.env.DATABASE_PATH && dbPath.startsWith('/')) {
+// Only create directory in production (when DATABASE_PATH is explicitly set)
+if (process.env.DATABASE_PATH) {
   const dbDir = path.dirname(dbPath);
-  if (!existsSync(dbDir)) {
-    mkdirSync(dbDir, { recursive: true });
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
   }
 }
 
+// Open database
 const db = new Database(dbPath);
 
 // Enable foreign keys
