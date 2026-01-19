@@ -2,12 +2,24 @@
 
 import { useState, useEffect } from 'react';
 
+interface Transaction {
+  id: number;
+  date: string;
+  description: string;
+  amount: number;
+  category: string;
+  spendingCategory?: string;
+}
+
 interface Insight {
   id: number;
   agentType: string;
   insightType: string;
   title: string;
   body: string;
+  dataJson?: {
+    transactions?: Transaction[];
+  };
   severity: 'info' | 'warning' | 'action_needed';
   category?: string;
   merchant?: string;
@@ -29,6 +41,7 @@ export default function AgentInsights({ limit = 5 }: AgentInsightsProps) {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const fetchInsights = async () => {
     try {
@@ -59,7 +72,6 @@ export default function AgentInsights({ limit = 5 }: AgentInsightsProps) {
       });
       const data = await response.json();
       if (data.success) {
-        // Refresh insights after analysis
         await fetchInsights();
       } else {
         setError(data.error);
@@ -92,17 +104,6 @@ export default function AgentInsights({ limit = 5 }: AgentInsightsProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const getSeverityStyles = (severity: string) => {
-    switch (severity) {
-      case 'action_needed':
-        return 'border-l-4 border-red-500 bg-red-50 dark:bg-red-950';
-      case 'warning':
-        return 'border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-950';
-      default:
-        return 'border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-950';
-    }
-  };
-
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
       case 'action_needed':
@@ -116,12 +117,10 @@ export default function AgentInsights({ limit = 5 }: AgentInsightsProps) {
 
   if (loading && insights.length === 0) {
     return (
-      <div className="bg-surface border border-border rounded-xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Financial Insights</h2>
-        </div>
-        <div className="text-center text-secondary py-8">Loading insights...</div>
-      </div>
+      <section className="space-y-4">
+        <h2 className="text-sm text-secondary uppercase tracking-wide">Insights</h2>
+        <p className="text-tertiary text-sm">Loading...</p>
+      </section>
     );
   }
 
@@ -152,31 +151,62 @@ export default function AgentInsights({ limit = 5 }: AgentInsightsProps) {
 
       {insights.length > 0 && (
         <ul className="space-y-3">
-          {insights.map((insight) => (
-            <li key={insight.id} className="flex items-start gap-3 group">
-              <span className="text-base shrink-0 mt-0.5">{getSeverityIcon(insight.severity)}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-primary">
-                  <span className="font-medium">{insight.title}</span>
-                  <span className="text-secondary"> — {insight.body}</span>
-                </p>
-                {insight.actionable && insight.actionText && (
-                  <p className="text-xs text-tertiary mt-1">
-                    → {insight.actionText}
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={() => dismissInsight(insight.id)}
-                className="shrink-0 opacity-0 group-hover:opacity-100 text-tertiary hover:text-primary transition p-1"
-                aria-label="Dismiss"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </li>
-          ))}
+          {insights.map((insight) => {
+            const transactions = insight.dataJson?.transactions || [];
+            const isExpanded = expandedId === insight.id;
+            const hasTransactions = transactions.length > 0;
+
+            return (
+              <li key={insight.id} className="group">
+                <div className="flex items-start gap-3">
+                  <span className="text-base shrink-0 mt-0.5">{getSeverityIcon(insight.severity)}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-primary">
+                      <span className="font-medium">{insight.title}</span>
+                      <span className="text-secondary"> — {insight.body}</span>
+                    </p>
+                    {insight.actionable && insight.actionText && (
+                      <p className="text-xs text-tertiary mt-1">→ {insight.actionText}</p>
+                    )}
+                    {hasTransactions && (
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : insight.id)}
+                        className="text-xs text-tertiary hover:text-secondary mt-2"
+                      >
+                        {isExpanded ? '▼' : '▶'} {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+                      </button>
+                    )}
+                    {isExpanded && (
+                      <div className="mt-3 space-y-1.5 pl-4 border-l-2 border-border">
+                        {transactions.map((tx) => (
+                          <div key={tx.id} className="flex justify-between items-start text-xs">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-primary truncate">{tx.description}</p>
+                              <p className="text-tertiary">
+                                {new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                              </p>
+                            </div>
+                            <p className="text-primary font-medium tabular-nums ml-3">
+                              ${tx.amount.toFixed(2)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => dismissInsight(insight.id)}
+                    className="shrink-0 opacity-0 group-hover:opacity-100 text-tertiary hover:text-primary transition p-1"
+                    aria-label="Dismiss"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
