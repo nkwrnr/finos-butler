@@ -79,8 +79,8 @@ function LoginForm() {
       const data = await response.json();
 
       if (data.success) {
-        router.push(from);
-        router.refresh();
+        // Use window.location for a full page reload to ensure cookie is picked up
+        window.location.href = from;
       } else {
         setError(data.error || 'Invalid PIN');
         setPin(['', '', '', '']);

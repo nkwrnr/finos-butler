@@ -3,6 +3,9 @@ import ZcashGuidance from './dashboard/ZcashGuidance';
 import DailyBriefing from './dashboard/DailyBriefing';
 import AgentInsights from './components/AgentInsights';
 
+// Force dynamic rendering - don't cache at build time
+export const dynamic = 'force-dynamic';
+
 export default async function Dashboard() {
   // Fetch savings goals
   const savingsGoals = db.prepare('SELECT * FROM savings_goals').all() as Array<{
