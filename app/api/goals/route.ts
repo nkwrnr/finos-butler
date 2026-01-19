@@ -8,7 +8,19 @@ initDatabase();
 
 export async function GET() {
   try {
-    const goals = db.prepare('SELECT * FROM savings_goals ORDER BY name').all();
+    // Get goals with calculated current_amount from linked accounts
+    const goals = db.prepare(`
+      SELECT
+        sg.id,
+        sg.name,
+        sg.target_amount,
+        sg.deadline,
+        COALESCE(SUM(a.balance), 0) as current_amount
+      FROM savings_goals sg
+      LEFT JOIN accounts a ON a.goal_id = sg.id
+      GROUP BY sg.id
+      ORDER BY sg.name
+    `).all();
     return NextResponse.json(goals);
   } catch (error) {
     console.error('Error fetching goals:', error);
@@ -34,8 +46,20 @@ export async function POST(request: NextRequest) {
 
     const result = insertGoal.run(name, target_amount);
 
+    // Return goal with calculated current_amount from linked accounts
     const newGoal = db
-      .prepare('SELECT * FROM savings_goals WHERE id = ?')
+      .prepare(`
+        SELECT
+          sg.id,
+          sg.name,
+          sg.target_amount,
+          sg.deadline,
+          COALESCE(SUM(a.balance), 0) as current_amount
+        FROM savings_goals sg
+        LEFT JOIN accounts a ON a.goal_id = sg.id
+        WHERE sg.id = ?
+        GROUP BY sg.id
+      `)
       .get(result.lastInsertRowid);
 
     // Log data change and invalidate caches
@@ -73,7 +97,19 @@ export async function PUT(request: NextRequest) {
       id
     );
 
-    const updatedGoal = db.prepare('SELECT * FROM savings_goals WHERE id = ?').get(id);
+    // Return goal with calculated current_amount from linked accounts
+    const updatedGoal = db.prepare(`
+      SELECT
+        sg.id,
+        sg.name,
+        sg.target_amount,
+        sg.deadline,
+        COALESCE(SUM(a.balance), 0) as current_amount
+      FROM savings_goals sg
+      LEFT JOIN accounts a ON a.goal_id = sg.id
+      WHERE sg.id = ?
+      GROUP BY sg.id
+    `).get(id);
 
     // Log data change and invalidate caches
     const currentMonth = getCurrentMonth();

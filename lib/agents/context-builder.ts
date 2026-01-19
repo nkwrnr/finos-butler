@@ -365,12 +365,20 @@ function getRecurringExpenses(): RecurringExpenseSummary[] {
 }
 
 function getGoals(): GoalSummary[] {
+  // Get goals with calculated current_amount from linked accounts
   const rows = db
     .prepare(
       `
-    SELECT id, name, target_amount, current_amount, deadline
-    FROM savings_goals
-    ORDER BY deadline ASC
+    SELECT
+      sg.id,
+      sg.name,
+      sg.target_amount,
+      COALESCE(SUM(a.balance), 0) as current_amount,
+      sg.deadline
+    FROM savings_goals sg
+    LEFT JOIN accounts a ON a.goal_id = sg.id
+    GROUP BY sg.id
+    ORDER BY sg.deadline ASC
   `
     )
     .all() as Array<{
