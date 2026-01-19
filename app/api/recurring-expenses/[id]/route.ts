@@ -1,15 +1,19 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const id = parseInt(params.id);
+    const { id: idStr } = await params;
+    const id = parseInt(idStr);
     const body = await request.json();
     const { tracked, category, override_amount, notes } = body;
 
     // Build dynamic UPDATE query based on provided fields
     const updates: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
 
     if (tracked !== undefined) {
       updates.push('tracked = ?');
@@ -50,9 +54,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 }
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const id = parseInt(params.id);
+    const { id: idStr } = await params;
+    const id = parseInt(idStr);
 
     const expense = db.prepare('SELECT * FROM recurring_expenses WHERE id = ?').get(id);
 
@@ -67,9 +75,13 @@ export async function GET(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const id = parseInt(params.id);
+    const { id: idStr } = await params;
+    const id = parseInt(idStr);
 
     // Mark as user_excluded instead of deleting
     db.prepare('UPDATE recurring_expenses SET user_excluded = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(id);

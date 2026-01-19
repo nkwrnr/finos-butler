@@ -28,7 +28,7 @@ export function testRecategorization() {
   console.log('='.repeat(120));
   console.log();
 
-  const changeSummary: Record<string, Record<string, number>> = {};
+  const changeSummary: Record<string, number> = {};
 
   for (const account of accounts) {
     const accountType = getAccountType(account.id);

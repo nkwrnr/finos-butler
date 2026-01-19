@@ -399,7 +399,6 @@ export async function detectRecurringExpenses(filters?: DetectionFilters): Promi
       next_predicted_amount: null, // Will be calculated later
       prediction_confidence: null,
       confidence,
-      sample_transaction_ids: null,
       detected_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       user_confirmed: userOverride === true ? 1 : 0,
@@ -471,9 +470,9 @@ export async function detectRecurringExpenses(filters?: DetectionFilters): Promi
   // Generate summary
   const summary: DetectionSummary = {
     total_recurring: recurringExpenses.length,
-    transactions_analyzed: db.prepare("SELECT COUNT(*) as count FROM transactions WHERE category = 'expense'").get() as {
+    transactions_analyzed: (db.prepare("SELECT COUNT(*) as count FROM transactions WHERE category = 'expense'").get() as {
       count: number;
-    },
+    }).count,
     by_type: {
       fixed: recurringExpenses.filter((e) => e.expense_type === 'fixed').length,
       variable_recurring: recurringExpenses.filter((e) => e.expense_type === 'variable_recurring').length,

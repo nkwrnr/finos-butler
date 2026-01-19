@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
         totalLines: lines.length,
       },
       rawText: text,
-      lines: lines.map((line, i) => ({ num: i, content: line.trim() })).filter(l => l.content),
-      firstHundredLines: lines.slice(0, 100).map((line, i) => ({ num: i, content: line.trim() })).filter(l => l.content),
+      lines: lines.map((line: string, i: number) => ({ num: i, content: line.trim() })).filter((l: { num: number; content: string }) => l.content),
+      firstHundredLines: lines.slice(0, 100).map((line: string, i: number) => ({ num: i, content: line.trim() })).filter((l: { num: number; content: string }) => l.content),
       parseResult: {
         transactions: parseResult.transactions,
         balance: parseResult.balance,

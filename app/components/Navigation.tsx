@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 
 const NAV_LINKS = [
   { href: '/', label: 'Dashboard' },
@@ -32,9 +33,9 @@ export default function Navigation() {
   return (
     <nav className="border-b border-border">
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-4 md:py-6 flex items-center justify-between">
-        <a href="/" className="text-xl font-semibold tracking-tight">
+        <Link href="/" className="text-xl font-semibold tracking-tight">
           Butler
-        </a>
+        </Link>
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-8">
