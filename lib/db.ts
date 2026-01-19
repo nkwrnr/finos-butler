@@ -315,5 +315,4 @@ export function initDatabase() {
 // Initialize tables on module load
 initDatabase();
 
-export { initDatabase };
 export default db;
