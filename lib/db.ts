@@ -17,7 +17,8 @@ const db = new Database(dbPath);
 // Enable foreign keys
 db.pragma('foreign_keys = ON');
 
-export function initDatabase() {
+// Auto-initialize database tables on first load
+function initDatabase() {
   // Create accounts table
   db.exec(`
     CREATE TABLE IF NOT EXISTS accounts (
@@ -261,6 +262,57 @@ export function initDatabase() {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_merchant_patterns_pattern ON merchant_patterns(pattern)
   `);
+
+  // Create recurring_expenses table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS recurring_expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      merchant_pattern TEXT NOT NULL,
+      merchant_name TEXT NOT NULL,
+      category TEXT,
+      expense_type TEXT NOT NULL,
+      frequency TEXT NOT NULL,
+      typical_amount REAL,
+      amount_variance REAL,
+      occurrence_count INTEGER DEFAULT 0,
+      first_occurrence_date TEXT,
+      last_occurrence_date TEXT,
+      last_amount REAL,
+      next_predicted_date TEXT,
+      next_predicted_amount REAL,
+      prediction_confidence REAL,
+      confidence TEXT DEFAULT 'medium',
+      detected_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT,
+      user_confirmed INTEGER DEFAULT 0,
+      user_excluded INTEGER DEFAULT 0,
+      tracked INTEGER DEFAULT 1
+    )
+  `);
+
+  // Create normalized_date column on transactions if it doesn't exist
+  try {
+    db.exec(`ALTER TABLE transactions ADD COLUMN normalized_date TEXT`);
+  } catch (e) {
+    // Column already exists
+  }
+
+  // Create zcash_purchases table for tracking purchase history
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS zcash_purchases (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      purchase_date TEXT NOT NULL,
+      amount_usd REAL NOT NULL,
+      amount_zec REAL,
+      price_per_zec REAL,
+      source TEXT,
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
 }
+
+// Initialize tables on module load
+initDatabase();
 
 export default db;

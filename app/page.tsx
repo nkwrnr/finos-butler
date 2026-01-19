@@ -1,9 +1,7 @@
-import db, { initDatabase } from '@/lib/db';
+import db from '@/lib/db';
 import ZcashGuidance from './dashboard/ZcashGuidance';
 import DailyBriefing from './dashboard/DailyBriefing';
-
-// Initialize database on server side
-initDatabase();
+import AgentInsights from './components/AgentInsights';
 
 export default async function Dashboard() {
   // Fetch savings goals
@@ -80,6 +78,9 @@ export default async function Dashboard() {
     <div className="space-y-12">
       {/* Daily Briefing - Actions, Alerts, Cash Position */}
       <DailyBriefing />
+
+      {/* AI Financial Insights */}
+      <AgentInsights limit={5} />
 
       {/* Hero Section - Key Numbers */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
