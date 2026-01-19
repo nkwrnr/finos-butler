@@ -18,7 +18,7 @@ const db = new Database(dbPath);
 db.pragma('foreign_keys = ON');
 
 // Auto-initialize database tables on first load
-function initDatabase() {
+export function initDatabase() {
   // Create accounts table
   db.exec(`
     CREATE TABLE IF NOT EXISTS accounts (

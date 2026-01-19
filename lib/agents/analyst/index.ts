@@ -106,11 +106,23 @@ async function generateInsightsWithClaude(
 
     if (spendingInsights) {
       for (const insight of spendingInsights) {
+        // Get transactions for this category
+        const categoryTransactions = insight.category
+          ? Object.values(context.currentMonth.byMerchant)
+              .filter((m: any) => m.category === insight.category)
+              .flatMap((m: any) => m.transactions)
+              .sort((a: any, b: any) => b.amount - a.amount)
+              .slice(0, 10) // Top 10 transactions
+          : [];
+
         allInsights.push({
           agentType: 'analyst',
           insightType: 'spending_spike',
           title: insight.title || 'Spending Pattern',
           body: insight.body || '',
+          dataJson: {
+            transactions: categoryTransactions,
+          },
           severity: (insight.severity as any) || 'info',
           category: insight.category,
           periodType: 'monthly',
@@ -143,11 +155,20 @@ async function generateInsightsWithClaude(
 
     if (merchantClaudeInsights) {
       for (const insight of merchantClaudeInsights) {
+        // Get transactions for this merchant
+        const merchantName = (insight as any).merchant;
+        const merchantTransactions = merchantName
+          ? context.currentMonth.byMerchant[merchantName]?.transactions || []
+          : [];
+
         allInsights.push({
           agentType: 'analyst',
           insightType: (insight as any).insightType || 'merchant_frequency',
           title: insight.title || 'Merchant Pattern',
           body: insight.body || '',
+          dataJson: {
+            transactions: merchantTransactions,
+          },
           severity: (insight.severity as any) || 'info',
           merchant: (insight as any).merchant,
           category: insight.category,
