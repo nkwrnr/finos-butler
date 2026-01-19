@@ -4,12 +4,15 @@ import { mkdirSync } from 'fs';
 
 const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'finance.db');
 
-// Ensure the directory exists before opening the database
-const dbDir = path.dirname(dbPath);
-try {
-  mkdirSync(dbDir, { recursive: true });
-} catch (e) {
-  // Directory already exists or can't be created - will fail on db open if issue
+// Only create directories for absolute paths (production)
+// For relative paths like './finance.db', the directory already exists
+if (path.isAbsolute(dbPath)) {
+  const dbDir = path.dirname(dbPath);
+  try {
+    mkdirSync(dbDir, { recursive: true });
+  } catch (e) {
+    // Directory already exists or can't be created - will fail on db open if issue
+  }
 }
 
 const db = new Database(dbPath);
