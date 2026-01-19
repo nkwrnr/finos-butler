@@ -1,17 +1,15 @@
 import Database from 'better-sqlite3';
 import path from 'path';
-import { mkdirSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 
 const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'finance.db');
 
-// Only create directories for absolute paths (production)
-// For relative paths like './finance.db', the directory already exists
-if (path.isAbsolute(dbPath)) {
+// Only create directory for production when DATABASE_PATH env var is explicitly set
+// Local dev uses process.cwd()/finance.db where the directory already exists
+if (process.env.DATABASE_PATH && dbPath.startsWith('/')) {
   const dbDir = path.dirname(dbPath);
-  try {
+  if (!existsSync(dbDir)) {
     mkdirSync(dbDir, { recursive: true });
-  } catch (e) {
-    // Directory already exists or can't be created - will fail on db open if issue
   }
 }
 
