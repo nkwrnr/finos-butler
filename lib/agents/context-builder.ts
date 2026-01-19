@@ -365,7 +365,7 @@ function getRecurringExpenses(): RecurringExpenseSummary[] {
 }
 
 function getGoals(): GoalSummary[] {
-  // Get goals with calculated current_amount from linked accounts
+  // Get goals with calculated current_amount from linked accounts using subquery
   const rows = db
     .prepare(
       `
@@ -373,11 +373,9 @@ function getGoals(): GoalSummary[] {
       sg.id,
       sg.name,
       sg.target_amount,
-      COALESCE(SUM(a.balance), 0) as current_amount,
+      COALESCE((SELECT SUM(a.balance) FROM accounts a WHERE a.goal_id = sg.id), 0) as current_amount,
       sg.deadline
     FROM savings_goals sg
-    LEFT JOIN accounts a ON a.goal_id = sg.id
-    GROUP BY sg.id
     ORDER BY sg.deadline ASC
   `
     )

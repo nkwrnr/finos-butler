@@ -8,17 +8,15 @@ initDatabase();
 
 export async function GET() {
   try {
-    // Get goals with calculated current_amount from linked accounts
+    // Get goals with calculated current_amount from linked accounts using subquery
     const goals = db.prepare(`
       SELECT
         sg.id,
         sg.name,
         sg.target_amount,
         sg.deadline,
-        COALESCE(SUM(a.balance), 0) as current_amount
+        COALESCE((SELECT SUM(a.balance) FROM accounts a WHERE a.goal_id = sg.id), 0) as current_amount
       FROM savings_goals sg
-      LEFT JOIN accounts a ON a.goal_id = sg.id
-      GROUP BY sg.id
       ORDER BY sg.name
     `).all();
     return NextResponse.json(goals);
@@ -46,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     const result = insertGoal.run(name, target_amount);
 
-    // Return goal with calculated current_amount from linked accounts
+    // Return goal with calculated current_amount from linked accounts using subquery
     const newGoal = db
       .prepare(`
         SELECT
@@ -54,11 +52,9 @@ export async function POST(request: NextRequest) {
           sg.name,
           sg.target_amount,
           sg.deadline,
-          COALESCE(SUM(a.balance), 0) as current_amount
+          COALESCE((SELECT SUM(a.balance) FROM accounts a WHERE a.goal_id = sg.id), 0) as current_amount
         FROM savings_goals sg
-        LEFT JOIN accounts a ON a.goal_id = sg.id
         WHERE sg.id = ?
-        GROUP BY sg.id
       `)
       .get(result.lastInsertRowid);
 
@@ -97,18 +93,16 @@ export async function PUT(request: NextRequest) {
       id
     );
 
-    // Return goal with calculated current_amount from linked accounts
+    // Return goal with calculated current_amount from linked accounts using subquery
     const updatedGoal = db.prepare(`
       SELECT
         sg.id,
         sg.name,
         sg.target_amount,
         sg.deadline,
-        COALESCE(SUM(a.balance), 0) as current_amount
+        COALESCE((SELECT SUM(a.balance) FROM accounts a WHERE a.goal_id = sg.id), 0) as current_amount
       FROM savings_goals sg
-      LEFT JOIN accounts a ON a.goal_id = sg.id
       WHERE sg.id = ?
-      GROUP BY sg.id
     `).get(id);
 
     // Log data change and invalidate caches
