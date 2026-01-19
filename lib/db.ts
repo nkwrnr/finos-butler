@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 
-const dbPath = path.join(process.cwd(), 'finance.db');
+const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'finance.db');
 const db = new Database(dbPath);
 
 // Enable foreign keys
