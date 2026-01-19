@@ -1,7 +1,17 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import { mkdirSync } from 'fs';
 
 const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'finance.db');
+
+// Ensure the directory exists before opening the database
+const dbDir = path.dirname(dbPath);
+try {
+  mkdirSync(dbDir, { recursive: true });
+} catch (e) {
+  // Directory already exists or can't be created - will fail on db open if issue
+}
+
 const db = new Database(dbPath);
 
 // Enable foreign keys
