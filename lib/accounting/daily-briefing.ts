@@ -12,6 +12,7 @@ import { closeMonth } from './monthly-close';
 import { calculateSavingsAction, type SavingsGoalAction } from './savings-actions';
 import { calculateCashReservation } from '../recurring-expenses/cash-reservation';
 import { briefingNeedsRefresh, getCachedBriefing } from '../data-pipeline/cache';
+import { getTodayLA, getNowLA, getCurrentMonthLA, isOlderThanHours } from '../utils/timezone';
 
 // Types
 export interface DailyBriefing {
@@ -114,9 +115,10 @@ export interface Alert {
 
 /**
  * Get daily briefing with caching and staleness check
+ * Uses America/Los_Angeles timezone for all date calculations
  */
 export async function getDailyBriefing(): Promise<DailyBriefing> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayLA();
 
   // Check cache with staleness detection
   const cached = getCachedBriefing(today);
@@ -125,18 +127,21 @@ export async function getDailyBriefing(): Promise<DailyBriefing> {
     // Check if data has changed since the briefing was cached
     const needsRefresh = briefingNeedsRefresh(cached.generated_at);
 
-    if (!needsRefresh) {
+    // Also refresh if cache is older than 4 hours (even without data changes)
+    const isStale = isOlderThanHours(cached.generated_at, 4);
+
+    if (!needsRefresh && !isStale) {
       return JSON.parse(cached.briefing_json);
     }
 
-    // Data changed since cache was created, delete stale cache
+    // Data changed or cache is stale, delete and regenerate
     db.prepare('DELETE FROM daily_briefings WHERE date = ?').run(today);
   }
 
   // Generate fresh briefing
   const briefing = await generateDailyBriefing();
 
-  // Cache it
+  // Cache it with LA timezone timestamp
   db.prepare('INSERT OR REPLACE INTO daily_briefings (date, briefing_json, generated_at) VALUES (?, ?, ?)').run(
     today,
     JSON.stringify(briefing),
@@ -148,20 +153,22 @@ export async function getDailyBriefing(): Promise<DailyBriefing> {
 
 /**
  * Invalidate today's cache and regenerate
+ * Uses America/Los_Angeles timezone
  */
 export async function refreshDailyBriefing(): Promise<DailyBriefing> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayLA();
   db.prepare('DELETE FROM daily_briefings WHERE date = ?').run(today);
   return getDailyBriefing();
 }
 
 /**
  * Generate a full daily briefing
+ * Uses America/Los_Angeles timezone for all calculations
  */
 export async function generateDailyBriefing(): Promise<DailyBriefing> {
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-  const currentMonth = todayStr.substring(0, 7);
+  const today = getNowLA();
+  const todayStr = getTodayLA();
+  const currentMonth = getCurrentMonthLA();
 
   // 1. Get checking account
   const checkingAccount = db.prepare(`

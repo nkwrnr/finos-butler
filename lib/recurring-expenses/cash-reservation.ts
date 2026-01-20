@@ -1,5 +1,6 @@
 import db from '../db';
 import { Priority, ConfidenceLevel, Severity } from './types';
+import { getTodayLA, getNowLA } from '../utils/timezone';
 
 export interface UpcomingBill {
   merchant: string;
@@ -30,8 +31,8 @@ export interface CashReservation {
  * Calculate cash reservation for upcoming bills
  */
 export function calculateCashReservation(checkingBalance: number, daysAhead: number = 14): CashReservation {
-  const today = new Date().toISOString().split('T')[0];
-  const cutoffDate = new Date();
+  const today = getTodayLA();
+  const cutoffDate = getNowLA();
   cutoffDate.setDate(cutoffDate.getDate() + daysAhead);
   const cutoffDateStr = cutoffDate.toISOString().split('T')[0];
 

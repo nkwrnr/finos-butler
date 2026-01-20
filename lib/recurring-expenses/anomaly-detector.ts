@@ -1,5 +1,6 @@
 import db from '../db';
 import { Anomaly, RecurringExpense, RecurringExpenseWithAnomalies, Transaction, Severity } from './types';
+import { getTodayLA } from '../utils/timezone';
 
 /**
  * Calculate days between two dates
@@ -27,7 +28,7 @@ export function detectAnomalies(
   recentTransactions: Transaction[]
 ): Anomaly[] {
   const anomalies: Anomaly[] = [];
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayLA();
 
   // 1. MISSED PAYMENT: Expected date has passed without occurrence
   const daysSinceLast = daysBetween(recurring.last_occurrence_date, today);
@@ -129,7 +130,7 @@ export function storeAnomalies(recurringExpenseId: number, anomalies: Anomaly[])
     ).run(
       recurringExpenseId,
       anomaly.type,
-      new Date().toISOString().split('T')[0],
+      getTodayLA(),
       anomaly.transaction_id || null,
       anomaly.expected_value,
       anomaly.actual_value,

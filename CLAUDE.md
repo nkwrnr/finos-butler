@@ -82,3 +82,18 @@ STOP. Do not proceed with bad data.
 - Max daily purchase: $300
 - Safety buffer: $2,000 minimum in checking
 - Track holdings in: Wallet, Coinbase
+
+## Deployment Rules for Claude Code
+
+When making changes that touch database, auth, or environment-specific code:
+
+1. ALWAYS ask: "Does this work for BOTH local (no DATABASE_PATH) and production (DATABASE_PATH=/app/data/finance.db)?"
+2. NEVER use path.isAbsolute() to decide behavior - it's true for /Users/... paths too
+3. ALWAYS check for the ENV VAR existence, not path characteristics
+4. ALWAYS test locally before pushing
+5. ALWAYS run `npm run build` before pushing
+6. If unsure, ask the user before making changes
+
+Critical rule for lib/db.ts:
+- Local: process.env.DATABASE_PATH is undefined → use ./finance.db
+- Production: process.env.DATABASE_PATH is set → use that path, create directory if needed

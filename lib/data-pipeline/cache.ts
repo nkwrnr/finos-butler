@@ -1,12 +1,14 @@
 import db from '../db';
 import { getLastDataChange, getCurrentMonth } from './events';
+import { getTodayLA, getCurrentMonthLA } from '../utils/timezone';
 
 /**
  * Invalidate all caches affected by data changes
+ * Uses America/Los_Angeles timezone
  */
 export function invalidateDependentCaches(affectedMonths: string[]): void {
-  const today = new Date().toISOString().split('T')[0];
-  const currentMonth = getCurrentMonth();
+  const today = getTodayLA();
+  const currentMonth = getCurrentMonthLA();
 
   // Always invalidate today's briefing if current month is affected
   if (affectedMonths.includes(currentMonth)) {
