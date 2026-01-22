@@ -194,12 +194,18 @@ export async function POST(request: NextRequest) {
 
           const importId = importRecord.lastInsertRowid as number;
 
-          // Insert transactions with auto-categorization
+          // Insert transactions with auto-categorization and deduplication
           const insertTransaction = db.prepare(
             'INSERT INTO transactions (account_id, import_id, date, normalized_date, description, amount, category) VALUES (?, ?, ?, ?, ?, ?, ?)'
           );
 
+          // Check for existing transaction to prevent duplicates
+          const checkDuplicate = db.prepare(
+            'SELECT id FROM transactions WHERE account_id = ? AND normalized_date = ? AND description = ? AND amount = ? LIMIT 1'
+          );
+
           let transactionCount = 0;
+          let skippedDuplicates = 0;
           const transactionDates: string[] = [];
 
           for (const transaction of transactions) {
@@ -209,6 +215,19 @@ export async function POST(request: NextRequest) {
 
               // Normalize date for consistent querying
               const normalizedDate = normalizeImportDate(transaction.date);
+
+              // Check if this transaction already exists
+              const existing = checkDuplicate.get(
+                account.id,
+                normalizedDate,
+                transaction.description,
+                transaction.amount
+              );
+
+              if (existing) {
+                skippedDuplicates++;
+                continue; // Skip duplicate
+              }
 
               insertTransaction.run(
                 account.id,
@@ -244,8 +263,8 @@ export async function POST(request: NextRequest) {
           // Invalidate dependent caches
           invalidateDependentCaches(affectedMonths);
 
-          // Update account balance to the most recent statement's ending balance
-          // Find the most recent import with a valid ending balance for this account
+          // Update account balance only if we have a valid ending balance from a statement
+          // For CSVs without ending balance, we cannot derive balance from transactions alone
           const mostRecentImport = db
             .prepare(`
               SELECT statement_ending_balance, statement_date, filename
@@ -256,18 +275,22 @@ export async function POST(request: NextRequest) {
             `)
             .get(account.id) as { statement_ending_balance: number; statement_date: string; filename: string } | undefined;
 
-          let finalBalance: number;
           if (mostRecentImport && mostRecentImport.statement_ending_balance !== null) {
-            // Use the ending balance from the most recent statement
-            finalBalance = mostRecentImport.statement_ending_balance;
+            // Use the ending balance from the most recent statement with a detected balance
+            db.prepare(
+              'UPDATE accounts SET balance = ?, last_updated = CURRENT_TIMESTAMP WHERE id = ?'
+            ).run(mostRecentImport.statement_ending_balance, account.id);
+          } else if (balance !== undefined) {
+            // Current import has a balance (e.g., from PDF) - use it
+            db.prepare(
+              'UPDATE accounts SET balance = ?, last_updated = CURRENT_TIMESTAMP WHERE id = ?'
+            ).run(balance, account.id);
           } else {
-            // Fallback: use the balance from current import or sum of transactions
-            finalBalance = balance !== undefined ? balance : 0;
+            // No balance available - just update timestamp, don't overwrite with 0
+            db.prepare(
+              'UPDATE accounts SET last_updated = CURRENT_TIMESTAMP WHERE id = ?'
+            ).run(account.id);
           }
-
-          db.prepare(
-            'UPDATE accounts SET balance = ?, last_updated = CURRENT_TIMESTAMP WHERE id = ?'
-          ).run(finalBalance, account.id);
 
           results.push({
             filename,

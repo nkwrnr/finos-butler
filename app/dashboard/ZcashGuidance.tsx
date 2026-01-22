@@ -210,23 +210,23 @@ export default function ZcashGuidance() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
               <p className="text-sm text-tertiary mb-1">Monthly Income</p>
-              <p className="text-lg font-medium tabular-nums">
+              <p className="text-lg font-medium tabular-nums text-primary">
                 ${formatCurrency(details.incomeProfile.averageMonthlyIncome)}
               </p>
             </div>
             <div>
               <p className="text-sm text-tertiary mb-1">Pay Frequency</p>
-              <p className="text-lg font-medium">{details.incomeProfile.payFrequency}</p>
+              <p className="text-lg font-medium text-primary">{details.incomeProfile.payFrequency}</p>
             </div>
             <div>
               <p className="text-sm text-tertiary mb-1">Days Since Paycheck</p>
-              <p className="text-lg font-medium tabular-nums">
+              <p className="text-lg font-medium tabular-nums text-primary">
                 {details.incomeProfile.daysSinceLastPaycheck}
               </p>
             </div>
             <div>
               <p className="text-sm text-tertiary mb-1">Days Until Paycheck</p>
-              <p className="text-lg font-medium tabular-nums">
+              <p className="text-lg font-medium tabular-nums text-primary">
                 {details.incomeProfile.daysUntilNextPaycheck}
               </p>
             </div>
@@ -236,25 +236,25 @@ export default function ZcashGuidance() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
               <p className="text-sm text-tertiary mb-1">Monthly Expenses</p>
-              <p className="text-lg font-medium tabular-nums">
+              <p className="text-lg font-medium tabular-nums text-primary">
                 ${formatCurrency(details.expenseProfile.averageMonthlyExpenses)}
               </p>
             </div>
             <div>
               <p className="text-sm text-tertiary mb-1">Daily Burn Rate</p>
-              <p className="text-lg font-medium tabular-nums">
+              <p className="text-lg font-medium tabular-nums text-primary">
                 ${formatCurrency(details.expenseProfile.dailyBurnRate)}
               </p>
             </div>
             <div>
               <p className="text-sm text-tertiary mb-1">Current Balance</p>
-              <p className="text-lg font-medium tabular-nums">
+              <p className="text-lg font-medium tabular-nums text-primary">
                 ${formatCurrency(details.cashFlowPosition.currentBalance)}
               </p>
             </div>
             <div>
               <p className="text-sm text-tertiary mb-1">Upcoming Bills</p>
-              <p className="text-lg font-medium tabular-nums">
+              <p className="text-lg font-medium tabular-nums text-primary">
                 ${formatCurrency(details.cashFlowPosition.upcomingBills)}
               </p>
             </div>
@@ -270,19 +270,19 @@ export default function ZcashGuidance() {
             </div>
             <div>
               <p className="text-sm text-tertiary mb-1">Current Holdings</p>
-              <p className="text-lg font-medium tabular-nums">
+              <p className="text-lg font-medium tabular-nums text-primary">
                 {details.zcashGoal.currentZec.toFixed(2)} ZEC
               </p>
             </div>
             <div>
               <p className="text-sm text-tertiary mb-1">Daily Target</p>
-              <p className="text-lg font-medium tabular-nums">
+              <p className="text-lg font-medium tabular-nums text-primary">
                 ${formatCurrency(details.zcashGoal.dailyUsdTarget)}
               </p>
             </div>
             <div>
               <p className="text-sm text-tertiary mb-1">Months Remaining</p>
-              <p className="text-lg font-medium tabular-nums">
+              <p className="text-lg font-medium tabular-nums text-primary">
                 {details.zcashGoal.monthsRemaining}
               </p>
             </div>
@@ -296,34 +296,34 @@ export default function ZcashGuidance() {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-tertiary">Monthly Discretionary</span>
-                <span className="tabular-nums">${formatCurrency(details.calculations.monthlyDiscretionary)}</span>
+                <span className="tabular-nums text-primary">${formatCurrency(details.calculations.monthlyDiscretionary)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-tertiary">Available for Zcash</span>
-                <span className="tabular-nums">${formatCurrency(details.calculations.availableForZcash)}</span>
+                <span className="tabular-nums text-primary">${formatCurrency(details.calculations.availableForZcash)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-tertiary">Daily Sustainable Budget</span>
-                <span className="tabular-nums">${formatCurrency(details.calculations.dailySustainableBudget)}</span>
+                <span className="tabular-nums text-primary">${formatCurrency(details.calculations.dailySustainableBudget)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-tertiary">Pay Cycle Adjustment</span>
-                <span className="tabular-nums">{details.calculations.payCycleAdjustment.toFixed(2)}x</span>
+                <span className="tabular-nums text-primary">{details.calculations.payCycleAdjustment.toFixed(2)}x</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-tertiary">Weekly Budget</span>
-                <span className="tabular-nums">${formatCurrency(details.calculations.weeklyBudget)}</span>
+                <span className="tabular-nums text-primary">${formatCurrency(details.calculations.weeklyBudget)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-tertiary">Spent This Week</span>
-                <span className="tabular-nums">${formatCurrency(details.calculations.zcashSpentThisWeek)}</span>
+                <span className="tabular-nums text-primary">${formatCurrency(details.calculations.zcashSpentThisWeek)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-tertiary">Remaining Weekly</span>
-                <span className="tabular-nums">${formatCurrency(details.calculations.remainingWeekly)}</span>
+                <span className="tabular-nums text-primary">${formatCurrency(details.calculations.remainingWeekly)}</span>
               </div>
               <div className="flex justify-between pt-3 border-t border-border">
-                <span className="font-medium">Final Recommendation</span>
+                <span className="font-medium text-primary">Final Recommendation</span>
                 <span className="font-medium tabular-nums text-positive">
                   ${formatCurrency(details.calculations.finalRecommendation)}
                 </span>
@@ -335,15 +335,15 @@ export default function ZcashGuidance() {
           <div className="grid grid-cols-3 gap-6 text-sm">
             <div>
               <p className="text-tertiary mb-1">Safety Buffer</p>
-              <p className="tabular-nums">${formatCurrency(details.constraints.safetyBuffer)}</p>
+              <p className="tabular-nums text-primary">${formatCurrency(details.constraints.safetyBuffer)}</p>
             </div>
             <div>
               <p className="text-tertiary mb-1">Max Daily Purchase</p>
-              <p className="tabular-nums">${formatCurrency(details.constraints.maxDailyPurchase)}</p>
+              <p className="tabular-nums text-primary">${formatCurrency(details.constraints.maxDailyPurchase)}</p>
             </div>
             <div>
               <p className="text-tertiary mb-1">Discretionary Allocation</p>
-              <p className="tabular-nums">{(details.constraints.discretionaryAllocation * 100).toFixed(0)}%</p>
+              <p className="tabular-nums text-primary">{(details.constraints.discretionaryAllocation * 100).toFixed(0)}%</p>
             </div>
           </div>
         </div>

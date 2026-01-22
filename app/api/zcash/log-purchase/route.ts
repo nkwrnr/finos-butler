@@ -49,6 +49,19 @@ export async function POST(request: NextRequest) {
 
     // 1. Create transaction in checking account (negative amount = outflow)
     const description = `${source} - Zcash Purchase (Manual Entry)`;
+    const transactionAmount = -body.amountUsd; // Negative because it's money leaving checking
+
+    // Check for duplicate transaction (same date, description, amount, account)
+    const existingTransaction = db.prepare(
+      'SELECT id FROM transactions WHERE account_id = ? AND date = ? AND description = ? AND amount = ? LIMIT 1'
+    ).get(checkingAccount.id, date, description, transactionAmount) as { id: number } | undefined;
+
+    if (existingTransaction) {
+      return NextResponse.json(
+        { success: false, error: 'This purchase has already been logged for this date and amount' },
+        { status: 400 }
+      );
+    }
 
     db.prepare(`
       INSERT INTO transactions (account_id, date, normalized_date, description, amount, category)
@@ -58,7 +71,7 @@ export async function POST(request: NextRequest) {
       date,
       date,
       description,
-      -body.amountUsd // Negative because it's money leaving checking
+      transactionAmount
     );
 
     // 2. Log in zcash_purchases table

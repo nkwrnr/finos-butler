@@ -39,7 +39,7 @@ export default function CashPosition({ cash, payCycle, dailyBudget }: CashPositi
         {/* Checking Balance */}
         <div>
           <p className="text-xs md:text-sm text-tertiary mb-1">Checking Balance</p>
-          <p className="text-xl md:text-2xl font-bold tabular-nums">
+          <p className="text-xl md:text-2xl font-bold tabular-nums text-primary">
             ${cash.checkingBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
         </div>
@@ -67,7 +67,7 @@ export default function CashPosition({ cash, payCycle, dailyBudget }: CashPositi
         {/* Daily Budget */}
         <div>
           <p className="text-xs md:text-sm text-tertiary mb-1">Daily Budget</p>
-          <p className="text-xl md:text-2xl font-bold tabular-nums">
+          <p className="text-xl md:text-2xl font-bold tabular-nums text-primary">
             ${dailyBudget.suggestedDailyLimit.toLocaleString()}
           </p>
           {dailyBudget.spentToday > 0 && (
@@ -82,7 +82,7 @@ export default function CashPosition({ cash, payCycle, dailyBudget }: CashPositi
       <div className="mt-4 md:mt-6 pt-4 border-t border-border">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 sm:gap-0 mb-2">
           <span className="text-xs md:text-sm text-secondary">Monthly Discretionary Remaining</span>
-          <span className="text-sm font-semibold tabular-nums">
+          <span className="text-sm font-semibold tabular-nums text-primary">
             ${dailyBudget.discretionaryRemaining.toLocaleString()}
           </span>
         </div>

@@ -19,10 +19,10 @@ export async function GET() {
       new Date(priceData.fetched_at) > fiveMinutesAgo;
 
     if (!isCacheFresh) {
-      // Fetch fresh price from CoinGecko
+      // Fetch fresh price from CoinGecko (no-store prevents stale cached responses)
       const response = await fetch(
         'https://api.coingecko.com/api/v3/simple/price?ids=zcash&vs_currencies=usd',
-        { next: { revalidate: 300 } }
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {
@@ -36,6 +36,12 @@ export async function GET() {
       db.prepare(
         'INSERT INTO zcash_price_cache (price_usd, change_24h, fetched_at) VALUES (?, NULL, ?)'
       ).run(currentPrice, now.toISOString());
+
+      // Store in price history for 7-day average calculation
+      const today = now.toISOString().split('T')[0];
+      db.prepare(
+        'INSERT OR REPLACE INTO zcash_price_history (date, price_usd) VALUES (?, ?)'
+      ).run(today, currentPrice);
     } else {
       currentPrice = priceData.price_usd;
     }

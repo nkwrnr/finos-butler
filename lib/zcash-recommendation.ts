@@ -17,11 +17,23 @@ export type RecommendationResult = {
   details: RecommendationDetails;
 };
 
+export type PriceTier = 'dip' | 'normal' | 'spike' | 'unknown';
+
+export type PriceMetrics = {
+  currentPrice: number;
+  avgPrice7d: number | null;
+  priceChange7d: number | null;
+  priceTier: PriceTier;
+  priceAdjustment: number;
+  priceReasoning: string | null;
+};
+
 export type RecommendationDetails = {
   incomeProfile: IncomeProfile;
   expenseProfile: ExpenseProfile;
   cashFlowPosition: CashFlowPosition;
   zcashGoal: ZcashGoalStatus;
+  priceMetrics: PriceMetrics;
   calculations: {
     monthlyDiscretionary: number;
     availableForZcash: number;
@@ -31,6 +43,8 @@ export type RecommendationDetails = {
     zcashSpentThisWeek: number;
     weeklyBudget: number;
     remainingWeekly: number;
+    baseRecommendation: number;
+    priceAdjustedRecommendation: number;
     finalRecommendation: number;
   };
   constraints: {
@@ -41,6 +55,93 @@ export type RecommendationDetails = {
   blockingReasons: string[];
   warnings: string[];
 };
+
+/**
+ * Get 7-day average price from history
+ */
+function get7DayAveragePrice(): { avgPrice: number; days: number } | null {
+  const result = db.prepare(`
+    SELECT AVG(price_usd) as avg_price, COUNT(*) as days
+    FROM zcash_price_history
+    WHERE date >= date('now', '-7 days')
+  `).get() as { avg_price: number | null; days: number } | undefined;
+
+  if (!result || !result.avg_price || result.days < 1) {
+    return null;
+  }
+
+  return { avgPrice: result.avg_price, days: result.days };
+}
+
+/**
+ * Calculate price adjustment based on goal status and price momentum
+ */
+function calculatePriceAdjustment(
+  currentPrice: number,
+  goalStatus: 'ahead' | 'on-track' | 'behind'
+): PriceMetrics {
+  const avgData = get7DayAveragePrice();
+
+  // Not enough price history
+  if (!avgData || avgData.days < 3) {
+    return {
+      currentPrice,
+      avgPrice7d: avgData?.avgPrice || null,
+      priceChange7d: null,
+      priceTier: 'unknown',
+      priceAdjustment: 1.0,
+      priceReasoning: avgData
+        ? `Only ${avgData.days} day(s) of price history — need 3+ days for price-based adjustment`
+        : 'No price history yet — price adjustment disabled',
+    };
+  }
+
+  const priceChange = (currentPrice - avgData.avgPrice) / avgData.avgPrice;
+
+  // Determine price tier
+  let priceTier: PriceTier;
+  if (priceChange <= -0.05) {
+    priceTier = 'dip';
+  } else if (priceChange >= 0.05) {
+    priceTier = 'spike';
+  } else {
+    priceTier = 'normal';
+  }
+
+  // Adjustment matrix: [goalStatus][priceTier]
+  const matrix: Record<string, Record<PriceTier, number>> = {
+    behind: { dip: 1.30, normal: 1.10, spike: 1.00, unknown: 1.0 },
+    'on-track': { dip: 1.20, normal: 1.00, spike: 0.85, unknown: 1.0 },
+    ahead: { dip: 1.10, normal: 1.00, spike: 0.75, unknown: 1.0 },
+  };
+
+  const adjustment = matrix[goalStatus]?.[priceTier] ?? 1.0;
+
+  // Generate reasoning
+  let priceReasoning: string | null = null;
+  const changePercent = Math.abs(priceChange * 100).toFixed(1);
+
+  if (priceTier === 'dip') {
+    priceReasoning = `Price is down ${changePercent}% vs 7-day avg ($${avgData.avgPrice.toFixed(2)}) — good buying opportunity`;
+  } else if (priceTier === 'spike') {
+    priceReasoning = `Price is up ${changePercent}% vs 7-day avg ($${avgData.avgPrice.toFixed(2)}) — consider waiting`;
+  }
+
+  if (adjustment !== 1.0 && priceReasoning) {
+    const adjustPercent = ((adjustment - 1) * 100).toFixed(0);
+    const sign = adjustment > 1 ? '+' : '';
+    priceReasoning += `. Adjusting by ${sign}${adjustPercent}% (${goalStatus === 'on-track' ? 'on track' : goalStatus} on goal)`;
+  }
+
+  return {
+    currentPrice,
+    avgPrice7d: avgData.avgPrice,
+    priceChange7d: priceChange,
+    priceTier,
+    priceAdjustment: adjustment,
+    priceReasoning,
+  };
+}
 
 /**
  * Generate daily Zcash purchase recommendation
@@ -77,8 +178,20 @@ export async function generateZcashRecommendation(zcashPrice: number): Promise<R
   const cashFlowPosition = getCashFlowPosition(checkingAccount.id, incomeProfile);
   const zcashGoal = getZcashGoalStatus(zcashPrice);
 
+  // Calculate price adjustment based on goal status and price momentum
+  const priceMetrics = calculatePriceAdjustment(zcashPrice, zcashGoal.status);
+
   const blockingReasons: string[] = [];
   const warnings: string[] = [];
+
+  // Check if goal deadline has passed
+  const deadlineDate = new Date(settings.goal_deadline);
+  const now = new Date();
+  if (deadlineDate < now) {
+    warnings.push(
+      `Your Zcash goal deadline (${settings.goal_deadline}) has passed. Consider updating your goal in settings.`
+    );
+  }
 
   // STEP 1: Check Hard Stops
   if (cashFlowPosition.currentBalance < safetyBuffer + 500) {
@@ -153,20 +266,35 @@ export async function generateZcashRecommendation(zcashPrice: number): Promise<R
   const remainingWeekly = Math.max(0, weeklyBudget - zcashSpentThisWeek);
   const todayMax = Math.min(adjustedDailyBudget, remainingWeekly);
 
-  // STEP 5: Apply Final Constraints
-  let finalRecommendation = Math.min(
+  // STEP 5: Apply Final Constraints (base recommendation before price adjustment)
+  let baseRecommendation = Math.min(
     todayMax,
     maxDailyPurchase,
     cashFlowPosition.currentBalance - safetyBuffer - cashFlowPosition.upcomingBills
   );
 
   // Don't recommend tiny amounts
-  if (finalRecommendation < 10) {
-    finalRecommendation = 0;
+  if (baseRecommendation < 10) {
+    baseRecommendation = 0;
   }
 
   // Round to nearest dollar
-  finalRecommendation = Math.floor(finalRecommendation);
+  baseRecommendation = Math.floor(baseRecommendation);
+
+  // STEP 6: Apply Price Adjustment
+  let priceAdjustedRecommendation = Math.round(baseRecommendation * priceMetrics.priceAdjustment);
+
+  // Still respect hard caps after price adjustment
+  let finalRecommendation = Math.min(
+    priceAdjustedRecommendation,
+    maxDailyPurchase,
+    Math.floor(cashFlowPosition.currentBalance - safetyBuffer - cashFlowPosition.upcomingBills)
+  );
+
+  // Don't recommend tiny amounts after adjustment
+  if (finalRecommendation < 10) {
+    finalRecommendation = 0;
+  }
 
   const calculations = {
     monthlyDiscretionary,
@@ -177,6 +305,8 @@ export async function generateZcashRecommendation(zcashPrice: number): Promise<R
     zcashSpentThisWeek,
     weeklyBudget,
     remainingWeekly,
+    baseRecommendation,
+    priceAdjustedRecommendation,
     finalRecommendation,
   };
 
@@ -191,6 +321,7 @@ export async function generateZcashRecommendation(zcashPrice: number): Promise<R
     expenseProfile,
     cashFlowPosition,
     zcashGoal,
+    priceMetrics,
     calculations,
     constraints,
     blockingReasons,
@@ -237,9 +368,14 @@ export async function generateZcashRecommendation(zcashPrice: number): Promise<R
     cashFlowPosition.balanceHealthScore < -0.2 ? 'lower than usual' :
     'typical';
 
-  const reasoning = `You're ${payCyclePhase} with a ${balanceHealth} balance. ` +
+  let reasoning = `You're ${payCyclePhase} with a ${balanceHealth} balance. ` +
     `Based on your income (~$${monthlyIncome.toFixed(0)}/month), expenses (~$${monthlyExpenses.toFixed(0)}/month), ` +
     `and Zcash goal, $${finalRecommendation} is sustainable today.`;
+
+  // Add price adjustment context to reasoning
+  if (priceMetrics.priceReasoning && priceMetrics.priceAdjustment !== 1.0) {
+    reasoning += ` ${priceMetrics.priceReasoning}`;
+  }
 
   return {
     recommendation: 'buy',
@@ -282,6 +418,7 @@ function createBlockedRecommendation(
   };
 
   const zcashGoal = getZcashGoalStatus(zcashPrice);
+  const priceMetrics = calculatePriceAdjustment(zcashPrice, zcashGoal.status);
 
   return {
     recommendation: 'blocked',
@@ -292,6 +429,7 @@ function createBlockedRecommendation(
       expenseProfile: emptyExpense,
       cashFlowPosition: emptyCashFlow,
       zcashGoal,
+      priceMetrics,
       calculations: {
         monthlyDiscretionary: 0,
         availableForZcash: 0,
@@ -301,6 +439,8 @@ function createBlockedRecommendation(
         zcashSpentThisWeek: 0,
         weeklyBudget: 0,
         remainingWeekly: 0,
+        baseRecommendation: 0,
+        priceAdjustedRecommendation: 0,
         finalRecommendation: 0,
       },
       constraints: {

@@ -89,13 +89,13 @@ export default async function Dashboard() {
       <section className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
         <div>
           <span className="text-sm text-secondary uppercase tracking-wide">Checking Balance</span>
-          <p className="text-3xl md:text-5xl font-semibold tabular-nums mt-2">
+          <p className="text-3xl md:text-5xl font-semibold tabular-nums mt-2 text-primary">
             ${formatCurrency(checkingTotal)}
           </p>
         </div>
         <div>
           <span className="text-sm text-secondary uppercase tracking-wide">Net Worth</span>
-          <p className="text-3xl md:text-5xl font-semibold tabular-nums mt-2">
+          <p className="text-3xl md:text-5xl font-semibold tabular-nums mt-2 text-primary">
             ${formatCurrency(netWorth)}
           </p>
         </div>
@@ -125,7 +125,7 @@ export default async function Dashboard() {
                       {percentComplete.toFixed(0)}%
                     </span>
                   </div>
-                  <p className="text-2xl font-semibold tabular-nums mb-4">
+                  <p className="text-2xl font-semibold tabular-nums mb-4 text-primary">
                     ${formatCurrency(currentAmount)}
                     <span className="text-tertiary text-lg font-normal">
                       {' '}/ ${(goal.target_amount / 1000).toFixed(0)}k
@@ -160,7 +160,7 @@ export default async function Dashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
             <div>
               <p className="text-2xl md:text-3xl font-semibold tabular-nums text-zcash">
-                {totalZec.toFixed(2)} <span className="text-base md:text-lg font-normal">ZEC</span>
+                {totalZec.toFixed(2)} <span className="text-base md:text-lg font-normal text-zcash">ZEC</span>
               </p>
               <p className="text-secondary text-sm md:text-base mt-1">
                 ${formatCurrency(totalZecValue)} USD
@@ -168,7 +168,7 @@ export default async function Dashboard() {
             </div>
 
             <div>
-              <p className="text-2xl md:text-3xl font-semibold tabular-nums">
+              <p className="text-2xl md:text-3xl font-semibold tabular-nums text-primary">
                 ${zcashPrice.toFixed(2)}
               </p>
               <p className="text-secondary text-sm md:text-base mt-1">Current Price</p>
@@ -218,13 +218,13 @@ export default async function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-surface border border-border rounded-xl p-6">
               <span className="text-sm text-secondary uppercase tracking-wide">Checking</span>
-              <p className="text-2xl font-semibold tabular-nums mt-2">
+              <p className="text-2xl font-semibold tabular-nums mt-2 text-primary">
                 ${formatCurrency(checkingTotal)}
               </p>
             </div>
             <div className="bg-surface border border-border rounded-xl p-6">
               <span className="text-sm text-secondary uppercase tracking-wide">Savings</span>
-              <p className="text-2xl font-semibold tabular-nums mt-2">
+              <p className="text-2xl font-semibold tabular-nums mt-2 text-primary">
                 ${formatCurrency(savingsTotal)}
               </p>
             </div>

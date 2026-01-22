@@ -149,6 +149,16 @@ export function initDatabase() {
     )
   `);
 
+  // Create zcash_price_history table for 7-day average calculation
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS zcash_price_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT UNIQUE NOT NULL,
+      price_usd REAL NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
   // Migrate from old zcash_holdings to zcash_sources if needed
   try {
     const oldHoldings = db.prepare('SELECT total_zec, cost_basis_usd FROM zcash_holdings WHERE id = 1')

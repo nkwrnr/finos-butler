@@ -42,30 +42,38 @@ export async function POST(request: NextRequest) {
 
     const { transactions, balance, warnings } = parseResult;
 
-    // Determine account name based on institution, type, and goal
-    let accountName: string;
-    if (goalId) {
-      // Get goal name for account naming
-      const goal = db.prepare('SELECT name FROM savings_goals WHERE id = ?').get(goalId) as { name: string } | undefined;
-      const goalName = goal ? goal.name : 'Unknown';
-      accountName = `${institution} - ${goalName} ${accountType}`;
-    } else {
-      accountName = `${institution} ${accountType}`;
-    }
-
-    // Find account by name AND goal_id (ensures separate accounts per goal)
+    // STEP 1: Try to find existing account by institution and type
+    // This prevents creating duplicate accounts when importing to the same logical account
     let account = db
-      .prepare('SELECT * FROM accounts WHERE name = ? AND institution = ? AND type = ? AND (goal_id = ? OR (goal_id IS NULL AND ? IS NULL))')
-      .get(accountName, institution, accountType, goalId, goalId) as { id: number; balance: number } | undefined;
+      .prepare('SELECT id, balance, name FROM accounts WHERE institution = ? AND type = ?')
+      .get(institution, accountType) as { id: number; balance: number; name: string } | undefined;
 
     let accountCreated = false;
+    let accountName: string;
 
-    if (!account) {
+    if (account) {
+      // Use existing account
+      accountName = account.name;
+
+      // If a goal was specified and account doesn't have one, optionally update it
+      if (goalId && !db.prepare('SELECT goal_id FROM accounts WHERE id = ?').get(account.id)) {
+        db.prepare('UPDATE accounts SET goal_id = ? WHERE id = ?').run(goalId, account.id);
+      }
+    } else {
+      // No existing account - create new one
+      if (goalId) {
+        const goal = db.prepare('SELECT name FROM savings_goals WHERE id = ?').get(goalId) as { name: string } | undefined;
+        const goalName = goal ? goal.name : 'Unknown';
+        accountName = `${institution} - ${goalName} ${accountType}`;
+      } else {
+        accountName = `${institution} ${accountType}`;
+      }
+
       const insertAccount = db.prepare(
         'INSERT INTO accounts (name, institution, type, balance, goal_id, last_updated) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)'
       );
       const result = insertAccount.run(accountName, institution, accountType, balance || 0, goalId);
-      account = { id: result.lastInsertRowid as number, balance: balance || 0 };
+      account = { id: result.lastInsertRowid as number, balance: balance || 0, name: accountName };
       accountCreated = true;
     }
 
@@ -76,18 +84,41 @@ export async function POST(request: NextRequest) {
 
     const importId = importRecord.lastInsertRowid as number;
 
-    // Insert transactions with import_id
+    // Insert transactions with import_id, with deduplication check
     const insertTransaction = db.prepare(
       'INSERT INTO transactions (account_id, import_id, date, description, amount, category) VALUES (?, ?, ?, ?, ?, ?)'
     );
 
+    // Check for existing transaction to prevent duplicates
+    const checkDuplicate = db.prepare(
+      'SELECT id FROM transactions WHERE account_id = ? AND date = ? AND description = ? AND amount = ? LIMIT 1'
+    );
+
     let transactionCount = 0;
+    let skippedDuplicates = 0;
+
     for (const transaction of transactions) {
       try {
+        // Normalize date to YYYY-MM-DD format for consistent comparison
+        const normalizedDate = transaction.date.split('T')[0];
+
+        // Check if this transaction already exists
+        const existing = checkDuplicate.get(
+          account.id,
+          normalizedDate,
+          transaction.description,
+          transaction.amount
+        );
+
+        if (existing) {
+          skippedDuplicates++;
+          continue; // Skip duplicate
+        }
+
         insertTransaction.run(
           account.id,
           importId,
-          transaction.date,
+          normalizedDate,
           transaction.description,
           transaction.amount,
           transaction.category || null
@@ -99,16 +130,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Calculate actual balance from transactions
-    const balanceResult = db.prepare('SELECT SUM(amount) as total FROM transactions WHERE account_id = ?')
-      .get(account.id) as { total: number | null };
+    if (skippedDuplicates > 0) {
+      warnings.push(`Skipped ${skippedDuplicates} duplicate transaction(s) that already exist in the database.`);
+    }
 
-    const calculatedBalance = balanceResult.total || 0;
+    // Only update account balance if the parser detected an ending balance from the statement
+    // For CSVs without ending balance, we cannot derive balance from transactions alone
+    // (would need a starting balance which we don't have)
+    let finalBalance = account.balance; // Keep existing balance by default
 
-    // Update account with calculated balance (prefer PDF-detected balance if available)
-    const finalBalance = balance !== undefined ? balance : calculatedBalance;
-    db.prepare('UPDATE accounts SET balance = ?, last_updated = CURRENT_TIMESTAMP WHERE id = ?')
-      .run(finalBalance, account.id);
+    if (balance !== undefined) {
+      // Parser detected a balance (e.g., from PDF statement) - use it
+      finalBalance = balance;
+      db.prepare('UPDATE accounts SET balance = ?, last_updated = CURRENT_TIMESTAMP WHERE id = ?')
+        .run(finalBalance, account.id);
+    } else {
+      // No balance detected (e.g., CSV) - just update last_updated timestamp
+      db.prepare('UPDATE accounts SET last_updated = CURRENT_TIMESTAMP WHERE id = ?')
+        .run(account.id);
+    }
 
     return NextResponse.json({
       success: true,

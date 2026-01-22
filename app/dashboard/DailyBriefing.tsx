@@ -124,12 +124,16 @@ export default function DailyBriefing() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
         <div>
           <span className="text-sm text-tertiary">
-            {new Date(briefing.date).toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
+            {/* Parse date string as local to avoid UTC timezone shift */}
+            {(() => {
+              const [year, month, day] = briefing.date.split('-').map(Number);
+              return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              });
+            })()}
           </span>
         </div>
         <button
