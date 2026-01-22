@@ -264,7 +264,7 @@ export async function generateZcashRecommendation(zcashPrice: number): Promise<R
     );
   }
 
-  // Check for same-day purchases
+  // Check for same-day purchases - ONE purchase per day max
   const today = new Date().toISOString().split('T')[0];
   const todayPurchaseResult = db.prepare(`
     SELECT COALESCE(SUM(amount_usd), 0) as total
@@ -272,8 +272,42 @@ export async function generateZcashRecommendation(zcashPrice: number): Promise<R
   `).get(today) as { total: number };
 
   const todayPurchased = todayPurchaseResult.total;
+
+  // If already purchased today, return wait recommendation immediately
   if (todayPurchased > 0) {
-    warnings.push(`Already purchased $${todayPurchased.toFixed(0)} today`);
+    const calculations = {
+      monthlyDiscretionary,
+      availableForZcash,
+      dailySustainableBudget,
+      payCycleAdjustment,
+      adjustedDailyBudget,
+      zcashSpentThisWeek,
+      zcashSpentToday: todayPurchased,
+      weeklyBudget,
+      remainingWeekly: Math.max(0, weeklyBudget - zcashSpentThisWeek),
+      baseRecommendation: 0,
+      priceAdjustedRecommendation: 0,
+      finalRecommendation: 0,
+    };
+
+    const details: RecommendationDetails = {
+      incomeProfile,
+      expenseProfile,
+      cashFlowPosition,
+      zcashGoal,
+      priceMetrics,
+      calculations,
+      constraints: { safetyBuffer, maxDailyPurchase, discretionaryAllocation },
+      blockingReasons: [],
+      warnings: [],
+    };
+
+    return {
+      recommendation: 'wait',
+      amount: 0,
+      reasoning: `You've already purchased $${todayPurchased.toFixed(0)} today. Next recommendation tomorrow.`,
+      details,
+    };
   }
 
   const remainingWeekly = Math.max(0, weeklyBudget - zcashSpentThisWeek);
