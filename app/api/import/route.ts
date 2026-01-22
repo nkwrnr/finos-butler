@@ -150,11 +150,23 @@ export async function POST(request: NextRequest) {
         .run(account.id);
     }
 
+    // Get date range of imported transactions for baseline prompt
+    const dateRange = db.prepare(`
+      SELECT MIN(normalized_date) as minDate, MAX(normalized_date) as maxDate
+      FROM transactions WHERE import_id = ?
+    `).get(importId) as { minDate: string | null; maxDate: string | null };
+
     return NextResponse.json({
       success: true,
       transactionCount,
       balance: finalBalance,
       warnings,
+      accountId: account.id,
+      dateRange: dateRange.minDate && dateRange.maxDate ? {
+        start: dateRange.minDate,
+        end: dateRange.maxDate,
+      } : undefined,
+      balanceDetected: balance !== undefined, // True if PDF parser found a balance
       accountCreated: accountCreated
         ? {
             name: accountName,

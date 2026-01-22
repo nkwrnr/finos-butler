@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db, { initDatabase } from '@/lib/db';
+import { calculateAccountBalance } from '@/lib/financial-intelligence';
 
 // Initialize database
 initDatabase();
@@ -13,9 +14,17 @@ export async function GET() {
       FROM accounts a
       LEFT JOIN savings_goals g ON a.goal_id = g.id
       ORDER BY a.institution, a.type
-    `).all();
+    `).all() as Array<{ id: number; balance: number; baseline_date: string | null; [key: string]: unknown }>;
 
-    return NextResponse.json(accounts);
+    // For accounts with baseline_date, calculate balance using ledger approach
+    const accountsWithCalculatedBalances = accounts.map(account => {
+      if (account.baseline_date) {
+        return { ...account, balance: calculateAccountBalance(account.id) };
+      }
+      return account;
+    });
+
+    return NextResponse.json(accountsWithCalculatedBalances);
   } catch (error) {
     console.error('Error fetching accounts:', error);
     return NextResponse.json({ error: 'Failed to fetch accounts' }, { status: 500 });

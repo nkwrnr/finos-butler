@@ -263,11 +263,36 @@ export function analyzeExpenses(accountId: number): ExpenseProfile {
 }
 
 /**
+ * Calculate account balance using ledger approach
+ * Formula: Baseline Balance + SUM(transactions after baseline date)
+ */
+export function calculateAccountBalance(accountId: number): number {
+  const account = db.prepare(
+    'SELECT balance, baseline_balance, baseline_date FROM accounts WHERE id = ?'
+  ).get(accountId) as { balance: number; baseline_balance: number | null; baseline_date: string | null } | undefined;
+
+  if (!account) return 0;
+
+  // If no baseline set, use stored balance
+  if (!account.baseline_date || account.baseline_balance === null) {
+    return account.balance || 0;
+  }
+
+  // Calculate: baseline + net change after baseline date
+  const result = db.prepare(`
+    SELECT COALESCE(SUM(amount), 0) as net_change
+    FROM transactions
+    WHERE account_id = ? AND normalized_date > ?
+  `).get(accountId, account.baseline_date) as { net_change: number };
+
+  return account.baseline_balance + result.net_change;
+}
+
+/**
  * Get current cash flow position
  */
 export function getCashFlowPosition(accountId: number, incomeProfile: IncomeProfile): CashFlowPosition {
-  const account = db.prepare('SELECT balance FROM accounts WHERE id = ?').get(accountId) as { balance: number } | undefined;
-  const currentBalance = account?.balance || 0;
+  const currentBalance = calculateAccountBalance(accountId);
 
   const payCyclePosition = incomeProfile.daysSinceLastPaycheck /
     (incomeProfile.daysSinceLastPaycheck + incomeProfile.daysUntilNextPaycheck);
