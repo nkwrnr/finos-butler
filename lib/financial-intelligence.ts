@@ -126,26 +126,28 @@ export function detectIncomeProfile(accountId: number): IncomeProfile {
     };
   }
 
-  const avgInterval = intervals.reduce((sum, d) => sum + d, 0) / intervals.length;
+  // Use median instead of average to handle outliers (e.g., a missed paycheck gap)
+  const sortedIntervals = [...intervals].sort((a, b) => a - b);
+  const medianInterval = sortedIntervals.length % 2 === 0
+    ? (sortedIntervals[sortedIntervals.length / 2 - 1] + sortedIntervals[sortedIntervals.length / 2]) / 2
+    : sortedIntervals[Math.floor(sortedIntervals.length / 2)];
 
   // Determine pay frequency
+  // Note: bi-weekly range expanded to 12-18 to handle variance in actual paycheck dates
   let payFrequency: IncomeProfile['payFrequency'];
   let payCycleDays: number;
-  if (avgInterval >= 6 && avgInterval <= 8) {
+  if (medianInterval >= 6 && medianInterval <= 8) {
     payFrequency = 'weekly';
     payCycleDays = 7;
-  } else if (avgInterval >= 13 && avgInterval <= 15) {
+  } else if (medianInterval >= 12 && medianInterval <= 18) {
     payFrequency = 'bi-weekly';
     payCycleDays = 14;
-  } else if (avgInterval >= 14 && avgInterval <= 16) {
-    payFrequency = 'semi-monthly';
-    payCycleDays = 15;
-  } else if (avgInterval >= 28 && avgInterval <= 32) {
+  } else if (medianInterval >= 28 && medianInterval <= 32) {
     payFrequency = 'monthly';
     payCycleDays = 30;
   } else {
     payFrequency = 'unknown';
-    payCycleDays = avgInterval;
+    payCycleDays = medianInterval;
   }
 
   const lastPaycheckDate = payrollDeposits[0].date;
@@ -162,8 +164,6 @@ export function detectIncomeProfile(accountId: number): IncomeProfile {
     monthlyIncome = avgPaycheck * 4.33;
   } else if (payFrequency === 'bi-weekly') {
     monthlyIncome = avgPaycheck * 2.17;
-  } else if (payFrequency === 'semi-monthly') {
-    monthlyIncome = avgPaycheck * 2;
   } else if (payFrequency === 'monthly') {
     monthlyIncome = avgPaycheck;
   } else {

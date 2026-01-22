@@ -41,6 +41,7 @@ export type RecommendationDetails = {
     payCycleAdjustment: number;
     adjustedDailyBudget: number;
     zcashSpentThisWeek: number;
+    zcashSpentToday: number;
     weeklyBudget: number;
     remainingWeekly: number;
     baseRecommendation: number;
@@ -263,6 +264,18 @@ export async function generateZcashRecommendation(zcashPrice: number): Promise<R
     );
   }
 
+  // Check for same-day purchases
+  const today = new Date().toISOString().split('T')[0];
+  const todayPurchaseResult = db.prepare(`
+    SELECT COALESCE(SUM(amount_usd), 0) as total
+    FROM zcash_purchases WHERE date = ?
+  `).get(today) as { total: number };
+
+  const todayPurchased = todayPurchaseResult.total;
+  if (todayPurchased > 0) {
+    warnings.push(`Already purchased $${todayPurchased.toFixed(0)} today`);
+  }
+
   const remainingWeekly = Math.max(0, weeklyBudget - zcashSpentThisWeek);
   const todayMax = Math.min(adjustedDailyBudget, remainingWeekly);
 
@@ -303,6 +316,7 @@ export async function generateZcashRecommendation(zcashPrice: number): Promise<R
     payCycleAdjustment,
     adjustedDailyBudget,
     zcashSpentThisWeek,
+    zcashSpentToday: todayPurchased,
     weeklyBudget,
     remainingWeekly,
     baseRecommendation,
@@ -437,6 +451,7 @@ function createBlockedRecommendation(
         payCycleAdjustment: 0,
         adjustedDailyBudget: 0,
         zcashSpentThisWeek: 0,
+        zcashSpentToday: 0,
         weeklyBudget: 0,
         remainingWeekly: 0,
         baseRecommendation: 0,

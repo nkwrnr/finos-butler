@@ -199,8 +199,10 @@ export async function generateDailyBriefing(): Promise<DailyBriefing> {
   const cashFlowPosition = getCashFlowPosition(checkingAccount.id, incomeProfile);
 
   // 4. Get Zcash price and recommendation
+  // Try cache first, then price history, then default
   const priceCache = db.prepare('SELECT price_usd FROM zcash_price_cache ORDER BY fetched_at DESC LIMIT 1').get() as { price_usd: number } | undefined;
-  const price = priceCache?.price_usd || 40;
+  const priceHistory = db.prepare('SELECT price_usd FROM zcash_price_history ORDER BY date DESC LIMIT 1').get() as { price_usd: number } | undefined;
+  const price = priceCache?.price_usd || priceHistory?.price_usd || 40;
   const zcashStatus = getZcashGoalStatus(price);
   const zcashRec = await generateZcashRecommendation(price);
 
